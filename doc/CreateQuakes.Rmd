@@ -1,5 +1,5 @@
 ---
-title: "Missouri Earthquate Data Set"
+title: "Missouri Earthquake Data Set"
 author: "Christopher Prener, Ph.D."
 date: "January 13, 2017"
 output: html_notebook
@@ -7,6 +7,15 @@ output: html_notebook
 
 ## Introduction
 This notebook details the creation of a data set of earthquakes in Missouri. 
+
+## Project Set Up
+Since our notebook resides in a subdirectory of the R project called `doc`, all relative paths to folders as in the `import("data/earthquakes.csv")` are assumed to subdirectories of `doc`. This, of course, is not the case. Rather, we want our notebook to assume that relatve paths of the folder with the R project file in it. We can use 
+
+```{r setup}
+knitr::opts_knit$set(root.dir = here::here())
+```
+
+This is a critically important step. It allows us to continue using relative paths **and** a logical, sustainable file system. Moreover, we can do this while also not using the `setwd()` function, which would be used to "hard code" a file path like `setwd("/Users/jsmith/Documents/SOC5650/MOEarthquakes")`. The `here()` function finds a project's root directory, and can be used to direct `knitr` appropriately. The beauty of this arrangement is that this file can be executed on *any* computer, since `here()` will always resolve to the appropriate project directory for `MOEarthquakes`. Doing so increases the reproducibility of our work.
 
 ## Dependencies
 The following packages are required for this notebook:
@@ -19,19 +28,7 @@ library(rio)          # data import
 
 library(sf)           # spatial data tool
 library(tigris)       # download census shapefiles
-
-library(here)         # project organization
-library(knitr)        # project documentation
 ```
-
-## Project Set Up
-Since our notebook resides in a subdirectory of the R project called `doc`, all relative paths to folders as in the `import("data/earthquakes.csv")` are assumed to subdirectories of `doc`. This, of course, is not the case. Rather, we want our notebook to assume that relatve paths of the folder with the R project file in it. We can use 
-
-```{r setup}
-opts_knit$set(root.dir = here())
-```
-
-This is a critically important step. It allows us to continue using relative paths **and** a logical, sustainable file system. Moreover, we can do this while also not using the `setwd()` function, which would be used to "hard code" a file path like `setwd("/Users/jsmith/Documents/SOC5650/MOEarthquakes")`. The `here()` function finds a project's root directory, and can be used to direct `knitr` appropriately. The beauty of this arrangement is that this file can be executed on *any* computer, since `here()` will always resolve to the appropriate project directory for `MOEarthquakes`. Doing so increases the reproducibility of our work.
 
 ## Obtaining Raw Data
 The data were obtained from the [USGS Earthquake Catalog](https://earthquake.usgs.gov/earthquakes/search/). The search parameters used were for earthquakes of at least a magnitude of `2.0` between `1973-01-01 00:00:00` and `2017-12-31 23:59:59`. A custom rectanlge around Missouri was drawn that covered the following coordinates - [`35.909, 40.699`] Latitude and [`-95.845, -88.989`] Longitude. These were output as `CSV` data and ordered with the oldest event first. They were saved to the file `earthquakes.csv` available in this repository.
