@@ -1,7 +1,7 @@
 # MOEarthquakes
 
 ## Introduction
-This repository has two goals. One, it provides an example of the project directory structure that is discussed in [Chapter 4](https://chris-prener.github.io/SSDSBook/organizing-projects.html) of [Sociospatial Data Science](https://chris-prener.github.io/SSDSBook). This is an extension of the project organization strategy by Greg Wilson, [Jenny Bryan](https://github.com/jennybc), and colleagues in their excellent article [*Good enough practices in scientific computing*](http://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1005510).
+This repository has two goals. One, it provides an example of the project directory structure that is discussed in [Chapter 4](https://chris-prener.github.io/SSDSBook/organizing-projects.html) of [Sociospatial Data Science](https://chris-prener.github.io/SSDSBook). This is an extension of the project organization strategy discussed by Greg Wilson, [Jenny Bryan](https://github.com/jennybc), and colleagues in their excellent article [*Good enough practices in scientific computing*](http://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1005510).
 
 Two, it provides working examples of a number of key skills for sociospatial data science:
 
@@ -24,7 +24,7 @@ There are four notebooks included in the `doc` subdirectory. The intended progre
 4. `LeafletQuakes.Rmd` - creation of an interactive maps of both the point and county earthquake data
 
 ## `ggplot2` Note
-The CRAN release of `ggplot2` does not include the `geom_sf()` geom for plotting simple features. This tutorial therefore requires the [development version](https://github.com/tidyverse/ggplot2), which you can install from GitHub using the `devtools` package.
+The CRAN release of `ggplot2` does not yet include the `geom_sf()` geom for plotting simple features. This tutorial therefore requires the [development version](https://github.com/tidyverse/ggplot2), which you can install from GitHub using the `devtools` package.
 
 ## Sample Output
 The `CreateQuakes.Rmd` notebook creates a shapefile of earthquakes in Missouri between 1973 and 2017 that were at least 2.0 on the [Richter scale](https://en.wikipedia.org/wiki/Richter_magnitude_scale). These data can be [previewed in this repository](/results/GEO_Earthquakes/GEO_Earthquakes.geojson).
