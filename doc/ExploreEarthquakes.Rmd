@@ -1,0 +1,73 @@
+---
+title: "Exploring Earthquakes"
+author: "Christopher Prener, Ph.D."
+date: "January 13, 2017"
+output: html_notebook
+---
+
+## Introduction
+This notebook details the exploration of a data set of earthquakes in Missouri. We created the shapefile referenced here in `MOEarthquakes.Rmd`.
+
+## Dependencies
+The following packages are required for this notebook:
+
+```{r}
+library(dplyr)        # data wrangling
+library(ggplot2)      # plotting
+
+library(skimr)        # descriptive statistics
+
+library(sf)           # spatial data tool
+library(tigris)       # download census shapefiles
+
+library(here)         # project organization
+library(knitr)        # project documentation
+```
+
+## Project Set Up
+Before proceeding, we'll make sure our notebook is set up to work with our project data structure.
+
+```{r setup}
+opts_knit$set(root.dir = here())
+```
+
+See `MOEarthquakes.Rmd` for an explanation of how this function works.
+
+## Load Earthquake Data
+
+## Initial Exploration of the Data
+Magnitude of earthquakes is measured using the [Richter scale](https://en.wikipedia.org/wiki/Richter_magnitude_scale). Earthquakes between 2 and 3.9 are considered minor with damage rarely reported. Earthquakes between 4 and 4.9 are considered light, with some minor damage (like objects falling inside buildings). Earthquakes with magnitudes greater than 5 cause increasingly greater amounts of damage. A lesser understood point is that the Richter scale is logrithmic and not linear, meaning that the power of an earthquake increases dramatically with each whole number increase on the scale.
+
+We'll start by using `skimr` to create a quick summary of the magnitude variable:
+
+```{r}
+skim(quakes, mag)
+```
+
+The most powerful earthquake in the data was a 4.8 magnitude earthquake, and we can see that the bulk of the observations are clustered on the lefthand side of the distribution (half of all observations are between 2 and 2.5).
+
+We can get a better summary of the distribution of earthquake magnitudes by creating a histogram of their magnitude:
+
+```{r}
+ggplot(data = quakes, mapping = aes(mag)) + 
+  geom_histogram(bins = 28)
+```
+
+We can also look at earthquake frequency over time by creating a year variable and then making another histogram. The year variable is made by extracting the first four characters of the `time` variable, which are always the year in these data.
+
+```{r}
+quakes <- mutate(quakes, year = as.integer(substr(time, 1, 4)))
+  
+ggplot(quakes, mapping = aes(year)) +
+  geom_histogram(bins = 45)
+```
+
+There does seem to be some patterning, with a peak in the mid-1980s and a recent increase after 2010. 
+
+```{r}
+ggplot(quakes, mapping = aes(x = year, y = mag)) +
+  geom_point() +
+  geom_smooth()
+```
+
+There is no real increase or decrease in the typical magnitude of earthquakes over each year in the data set. 
