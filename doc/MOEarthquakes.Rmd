@@ -1,5 +1,7 @@
 ---
 title: "Missouri Earthquate Data Set"
+author: "Christopher Prener, Ph.D."
+date: "January 13, 2017"
 output: html_notebook
 ---
 
@@ -15,8 +17,7 @@ library(ggplot2)      # plotting
 
 library(rio)          # data import
 
-library(skimr)        # descriptive statistics
-
+library(sf)           # spatial data tool
 library(tigris)       # download census shapefiles
 
 library(here)         # project organization
@@ -66,40 +67,95 @@ ggplot() +
   geom_sf(data = mo)
 ```
 
+### Adding Earthquakes to Map
 
-## Initial Exploration of the Data
-Magnitude of earthquakes is measured using the [Richter scale](https://en.wikipedia.org/wiki/Richter_magnitude_scale). Earthquakes between 2 and 3.9 are considered minor with damage rarely reported. Earthquakes between 4 and 4.9 are considered light, with some minor damage (like objects falling inside buildings). Earthquakes with magnitudes greater than 5 cause increasingly greater amounts of damage. A lesser understood point is that the Richter scale is logrithmic and not linear, meaning that the power of an earthquake increases dramatically with each whole number increase on the scale.
-
-We'll start by using `skimr` to create a quick summary of the magnitude variable:
+For the next map, we'll add the earthqukes. The `quakes` data frame includes variables measuring longitude and latitutde, which can be used to "project" the data on the map. 
 
 ```{r}
-skim(quakes, mag)
+ggplot() +
+  geom_sf(data = mo) +
+  geom_point(data = quakes, mapping = aes(x=longitude, y=latitude))
 ```
 
-The most powerful earthquake in the data was a 4.8 magnitude earthquake, and we can see that the bulk of the observations are clustered on the lefthand side of the distribution (half of all observations are between 2 and 2.5).
+This map gives a clear sense of our data cleaning task - there are a considerable number of points that fall outside the state boundary that we are not interested in for this exercise.
 
-We can get a better summary of the distribution of earthquake magnitudes by creating a histogram of their magnitude:
+### Converting `quakes` to a Simple Features
+Before we convert our `quakes` data frame (which is a tabular object that contains geometric data) into a geometric object, we need to make a decision about the coordinate system we will use for our data. Since they are already in decimal degrees, and since data from `tigris` uses the NAD1983 standard, we'll use NAD1983 as well. 
+
+The `sf` package includes a tool for confirming which coordinate system is being used by a geometric object:
 
 ```{r}
-ggplot(data = quakes, mapping = aes(mag)) + 
-  geom_histogram(bins = 28)
+st_crs(mo)
 ```
 
-We can also look at earthquake frequency over time by creating a year variable and then making another histogram. The year variable is made by extracting the first four characters of the `time` variable, which are always the year in these data.
+The EPSG value refers to the identification number of the coordinate system in the EPSG data base. EPSG stands for "European Petroleum Survey Group". The value `4269` is the EPSG identification number for NAD1983.
+
+With a coordinate system selected, we can convert our object to a geometric one:
 
 ```{r}
-quakes <- mutate(quakes, year = as.integer(substr(time, 1, 4)))
-  
-ggplot(quakes, mapping = aes(year)) +
-  geom_histogram(bins = 45)
+quakesGeo <- st_as_sf(quakes, coords = c("longitude", "latitude"), crs = 4269)
 ```
 
-There does seem to be some patterning, with a peak in the mid-1980s and a recent increase after 2010. 
+To check that it converted correctly, we can make a map with it. Notice how the `ggplot()` syntax is simpler with a simple feature object than it is when we are trying to map a data frame.
 
 ```{r}
-ggplot(quakes, mapping = aes(x = year, y = mag)) +
-  geom_point() +
-  geom_smooth()
+ggplot() +
+  geom_sf(data = mo) +
+  geom_sf(data = quakesGeo)
 ```
 
-There is no real increase or decrease in the typical magnitude of earthquakes over each year in the data set. 
+Our map looks like the previous one!
+
+### Spatial Joins
+Our goal with the spatial join is to select only the points on the map that fall within Missouri. We can use the `st_join()` function to accomplish this. The ordering is important here - `quakesGeo`, our point data, should be listed first. 
+
+This will produce a geometric object that contains state information applied to each point. If the earthquake is within Missouri, it will have the data from the state geometric data. If it is outside of Missouri, it will have `NA` for the state data columns. We can use `dplyr`'s `filter()` function to extract only the points within Missouri.
+
+This code arrangement is called a "pipeline". Each time you see the `%>%` operator, think of the word "then". We can read the pipeline like so:
+
+1. Take the `quakesGeo` data and **then**
+2. Combine it with the `mo` data using a spatial join, **then**
+3. Extract all of the observations that are within Missouri and
+4. Assign the results to a new geometric object named `quakesMO`
+
+The period in `st_join()` is a placeholder, instructing `st_join()` to reference `quakesGeo` at the point in the function where the period appears.
+
+```{r}
+quakesGeo  %>%
+  st_join(., mo) %>%
+  filter(STUSPS == "MO") -> quakesMO
+```
+
+We can check our work again by mapping the newly joined data:
+
+```{r}
+ggplot() +
+  geom_sf(data = mo) +
+  geom_sf(data = quakesMO)
+```
+
+The `st_join()` function will append all of the variables from `mo` to our data as well, so we'll want to clean up the data frame a bit before moving on.
+
+```{r}
+str(quakesMO)
+```
+
+To keep things simple for this example, we'll only retain the `time`, `depth`, `mag`, and `place` variables:
+
+```{r}
+quakesMO <- select(quakesMO, time, depth, mag, place)
+```
+
+### Writing the Results to a Shapefile
+Before we continue, we'll write the results of our geoprocessing to a shapefile so we can use the data later without re-creating it. This will also allow us to open the shapefile in a program like ArcGIS if we wanted to produce a more finished looking map.
+
+```{r}
+st_write(quakesMO, "results/GEO_Earthquakes.shp")
+```
+
+We'll also write these data as a .geojson file so that they can be previewed on GitHub. GeoJSON files are plain-text versions of shapefiles.
+
+```{r}
+st_write(quakesMO, "results/GEO_Earthquakes.geojson")
+```
+
