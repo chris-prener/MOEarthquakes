@@ -144,15 +144,21 @@ quakesMO <- select(quakesMO, time, depth, mag, place)
 ```
 
 ### Writing the Results to a Shapefile
-Before we continue, we'll write the results of our geoprocessing to a shapefile so we can use the data later without re-creating it. This will also allow us to open the shapefile in a program like ArcGIS if we wanted to produce a more finished looking map.
+Before we continue, we'll write the results of our geoprocessing to a shapefile so we can use the data later without re-creating it. This will also allow us to open the shapefile in a program like ArcGIS if we wanted to produce a more finished looking map. We'll want to create a folder in the `results` subdirectory to store these files: 
 
 ```{r}
-st_write(quakesMO, "results/GEO_Earthquakes.shp")
+dir.create("results/GEO_Earthquakes")
+```
+
+With the folder made, we can save the shapefile:
+
+```{r}
+st_write(quakesMO, "results/GEO_Earthquakes/GEO_Earthquakes.shp")
 ```
 
 We'll also write these data as a .geojson file so that they can be previewed on GitHub. GeoJSON files are plain-text versions of shapefiles.
 
 ```{r}
-st_write(quakesMO, "results/GEO_Earthquakes.geojson")
+st_write(quakesMO, "results/GEO_Earthquakes/GEO_Earthquakes.geojson")
 ```
 
