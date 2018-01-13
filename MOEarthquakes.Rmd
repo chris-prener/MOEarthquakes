@@ -1,0 +1,91 @@
+---
+title: "Missouri Earthquate Data Set"
+output: html_notebook
+---
+
+## Introduction
+This notebook details the creation of a data set of earthquakes in Missouri. 
+
+## Dependencies
+The following packages are required for this notebook:
+
+```{r}
+library(dplyr)        # data wrangling
+library(ggplot2)      # plotting
+
+library(rio)          # data import
+
+library(skimr)        # descriptive statistics
+
+library(tigris)       # download census shapefiles
+```
+
+
+## Obtaining Raw Data
+The data were obtained from the [USGS Earthquake Catalog](https://earthquake.usgs.gov/earthquakes/search/). The search parameters used were for earthquakes of at least a magnitude of `2.0` between `1973-01-01 00:00:00` and `2017-12-31 23:59:59`. A custom rectanlge around Missouri was drawn that covered the following coordinates - [`35.909, 40.699`] Latitude and [`-95.845, -88.989`] Longitude. These were output as `CSV` data and ordered with the oldest event first. They were saved to the file `earthquakes.csv` available in this repository.
+
+```{r}
+quakes <- import("earthquakes.csv")
+```
+
+## Initial Exploration of the Data
+Magnitude of earthquakes is measured using the [Richter scale](https://en.wikipedia.org/wiki/Richter_magnitude_scale). Earthquakes between 2 and 3.9 are considered minor with damage rarely reported. Earthquakes between 4 and 4.9 are considered light, with some minor damage (like objects falling inside buildings). Earthquakes with magnitudes greater than 5 cause increasingly greater amounts of damage. A lesser understood point is that the Richter scale is logrithmic and not linear, meaning that the power of an earthquake increases dramatically with each whole number increase on the scale.
+
+We'll start by using `skimr` to create a quick summary of the magnitude variable:
+
+```{r}
+skim(quakes, mag)
+```
+
+The most powerful earthquake in the data was a 4.8 magnitude earthquake, and we can see that the bulk of the observations are clustered on the lefthand side of the distribution (half of all observations are between 2 and 2.5).
+
+We can get a better summary of the distribution of earthquake magnitudes by creating a histogram of their magnitude:
+
+```{r}
+ggplot(data = quakes, mapping = aes(mag)) + 
+  geom_histogram(bins = 28)
+```
+
+We can also look at earthquake frequency over time by creating a year variable and then making another histogram. The year variable is made by extracting the first four characters of the `time` variable, which are always the year in these data.
+
+```{r}
+quakes <- mutate(quakes, year = as.integer(substr(time, 1, 4)))
+  
+ggplot(quakes, mapping = aes(year)) +
+  geom_histogram(bins = 45)
+```
+
+There does seem to be some patterning, with a peak in the mid-1980s and a recent increase after 2010. 
+
+```{r}
+ggplot(quakes, mapping = aes(x = year, y = mag)) +
+  geom_point() +
+  geom_smooth()
+```
+
+There is no real increase or decrease in the typical magnitude of earthquakes over each year in the data set.
+
+## Mapping Earthquakes
+We'll start by downloading a shapefile of all states using the `tigris` package, and then convert it to a simple feature object. What we really need is just the Missouri state boundary, so we'll extract that from the larger data set.
+
+```{r}
+# download us states data
+us <- states(year = 2015)
+
+# convert to simple feature
+us <- st_as_sf(us)
+
+# extract missouri data
+mo <- filter(us, GEOID == "29")
+
+# remove states data
+rm(us)
+```
+
+We can check that the conversion worked by making a simple map of Missouri using the `geom_sf()` geom from `ggplot2`. *This geom is currently only available from the development version.*
+
+```{r}
+ggplot() +
+  geom_sf(data = mo)
+```
+
