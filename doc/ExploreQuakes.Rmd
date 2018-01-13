@@ -1,12 +1,21 @@
 ---
-title: "Exploring Earthquakes"
+title: "Exploring Earthquakes in Missouri"
 author: "Christopher Prener, Ph.D."
 date: "January 13, 2017"
 output: html_notebook
 ---
 
 ## Introduction
-This notebook details the exploration of a data set of earthquakes in Missouri. We created the shapefile referenced here in `MOEarthquakes.Rmd`.
+This notebook details the exploration of a data set of earthquakes in Missouri. We created the shapefile referenced here in `CreateQuakes.Rmd`.
+
+## Project Set Up
+Before proceeding, we'll make sure our notebook is set up to work with our project data structure.
+
+```{r setup}
+knitr::opts_knit$set(root.dir = here::here())
+```
+
+See `CreateQuakes.Rmd` for an explanation of how this function works.
 
 ## Dependencies
 The following packages are required for this notebook:
@@ -19,55 +28,92 @@ library(skimr)        # descriptive statistics
 
 library(sf)           # spatial data tool
 library(tigris)       # download census shapefiles
-
-library(here)         # project organization
-library(knitr)        # project documentation
 ```
-
-## Project Set Up
-Before proceeding, we'll make sure our notebook is set up to work with our project data structure.
-
-```{r setup}
-opts_knit$set(root.dir = here())
-```
-
-See `MOEarthquakes.Rmd` for an explanation of how this function works.
 
 ## Load Earthquake Data
+We'll want to start by reading the earthquake data we created previous into R's global enviornment. We can use the `read_sf()` function to accomplish this:
 
-## Initial Exploration of the Data
-Magnitude of earthquakes is measured using the [Richter scale](https://en.wikipedia.org/wiki/Richter_magnitude_scale). Earthquakes between 2 and 3.9 are considered minor with damage rarely reported. Earthquakes between 4 and 4.9 are considered light, with some minor damage (like objects falling inside buildings). Earthquakes with magnitudes greater than 5 cause increasingly greater amounts of damage. A lesser understood point is that the Richter scale is logrithmic and not linear, meaning that the power of an earthquake increases dramatically with each whole number increase on the scale.
+```{r}
+moQuakes <- read_sf("results/GEO_Earthquakes/GEO_Earthquakes.shp")
+```
+
+## Descriptive Statistics
+Magnitude of earthquakes is measured using the [Richter scale](https://en.wikipedia.org/wiki/Richter_magnitude_scale). Earthquakes between 2 and 3.9 are considered minor with damage rarely reported. Earthquakes between 4 and 4.9 are considered light, with some minor damage (like objects falling inside buildings). Earthquakes with magnitudes greater than 5 cause increasingly greater amounts of damage (spoiler, there are not any earthquakes this strong in our Missouri data!). A lesser understood point is that the Richter scale is logrithmic and not linear, meaning that the power of an earthquake increases dramatically with each whole number increase on the scale.
 
 We'll start by using `skimr` to create a quick summary of the magnitude variable:
 
 ```{r}
-skim(quakes, mag)
+skim(moQuakes, mag)
 ```
 
-The most powerful earthquake in the data was a 4.8 magnitude earthquake, and we can see that the bulk of the observations are clustered on the lefthand side of the distribution (half of all observations are between 2 and 2.5).
+The most powerful earthquake in the data was a 4.8 magnitude earthquake, and we can see that the bulk of the observations are clustered on the lefthand side of the distribution (half of all observations are between 2 and 2.5). Notice this note included with our output - the `skimr` package does not work seemlessly with simple features.
 
-We can get a better summary of the distribution of earthquake magnitudes by creating a histogram of their magnitude:
+## Exploratory Data Analysis
+We can get a more detailed visual summary of the distribution of earthquake magnitudes by creating a histogram of their magnitude:
 
 ```{r}
-ggplot(data = quakes, mapping = aes(mag)) + 
+ggplot(data = moQuakes, mapping = aes(mag)) + 
   geom_histogram(bins = 28)
 ```
 
-We can also look at earthquake frequency over time by creating a year variable and then making another histogram. The year variable is made by extracting the first four characters of the `time` variable, which are always the year in these data.
+We can also look at earthquake frequency over time by creating a year variable and then making another histogram. The year variable is made by extracting the first four characters of the `time` variable, which are always the year in these data. We do this in another "pipeline". This one can be read like so:
+
+1. Take the `moQuakes` data and **then**
+2. Create a new variable named `year` that contains the first four characters from the `time` variable, **then**
+3. Create a histogram of these data using `ggplot2`
 
 ```{r}
-quakes <- mutate(quakes, year = as.integer(substr(time, 1, 4)))
-  
-ggplot(quakes, mapping = aes(year)) +
-  geom_histogram(bins = 45)
+moQuakes %>%
+  mutate(year = as.integer(substr(time, 1, 4))) %>%
+  ggplot(moQuakes, mapping = aes(year)) +
+    geom_histogram(bins = 45)
 ```
 
 There does seem to be some patterning, with a peak in the mid-1980s and a recent increase after 2010. 
 
 ```{r}
-ggplot(quakes, mapping = aes(x = year, y = mag)) +
-  geom_point() +
-  geom_smooth()
+moQuakes %>%
+  mutate(year = as.integer(substr(time, 1, 4))) %>%
+  ggplot(moQuakes, mapping = aes(x = year, y = mag)) +
+    geom_point() +
+    geom_smooth(method = lm, position = "jitter")
 ```
 
-There is no real increase or decrease in the typical magnitude of earthquakes over each year in the data set. 
+There is no real increase or decrease in the typical magnitude of earthquakes over each year in the data set. We can see again the increase in earthquake activity in the last three years.
+
+## Mapping Earthquakes
+We've already seen how to make a couple of basic maps using our earthquake data in `CreateQuakes.Rmd`. Here, we'll make some tweaks to our map layout. We'll begin by downloading the Missouri shape geometric data again using `tigris`:
+
+```{r}
+# download us states data
+us <- states(year = 2015)
+
+# convert to simple feature
+us <- st_as_sf(us)
+
+# extract missouri data
+mo <- filter(us, GEOID == "29")
+
+# remove states data
+rm(us)
+```
+
+As a review, we can also replicate the map we made in `CreateQuakes.Rmd`. We'll use two map layers, one of the state boundary data and one of the earthquake data themselves:
+
+```{r}
+ggplot() +
+  geom_sf(data = mo) +
+  geom_sf(data = moQuakes)
+```
+
+We can extend this `ggplot2` syntax to create a slightly more complex map that shows all of the earthquakes in our data set but highlights the most severe. Thhe use of grey for all of the earthquakes and red relies on a perceptual technique known as [figure-ground](https://en.wikipedia.org/wiki/Figure–ground_%28perception%29). This is a common technique in cartography used to provide visual context while emphasizing particular data points.
+
+```{r}
+moQuakes %>%
+  mutate(magBin = ifelse(mag >= 4.0, TRUE, FALSE)) %>%
+  ggplot() +
+    geom_sf(data = mo) +
+    geom_sf(mapping = aes(color = magBin)) +
+    scale_color_manual(values = c("#909090", "#f8766d"))
+```
+
