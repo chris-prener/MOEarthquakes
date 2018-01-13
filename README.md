@@ -11,7 +11,7 @@ Two, it provides working examples of a number of key skills for sociospatial dat
 * creating interactive maps using [`leaflet`](https://rstudio.github.io/leaflet/)
 
 ## Seismic Activity in Missouri
-Missouri is an interesting state for mapping earthquakes due to the presence of the [New Madrid seismic zone](https://en.wikipedia.org/wiki/New_Madrid_Seismic_Zone) in the southeast part of the state (known as the "bootheel"). The region was the site of a [series of powerful earthquakes](https://en.wikipedia.org/wiki/1811–12_New_Madrid_earthquakes) in 1811 and 1812 near [New Madrid, MO](https://en.wikipedia.org/wiki/New_Madrid,_Missouri). These earthquakes have been estimated to be the [most powerful ones](https://en.wikipedia.org/wiki/List_of_earthquakes_in_the_United_States) to occur east of the Rocky Mountains in recorded history. This area was rated in 2014 as having some of the highest earthquake hazard levels in the continental United States outside of the Pacific coast:
+Missouri is an interesting state for mapping earthquakes due to the presence of the [New Madrid seismic zone](https://en.wikipedia.org/wiki/New_Madrid_Seismic_Zone) in the southeast part of the state (known as the "bootheel"). The region was the site of a [series of powerful earthquakes](https://en.wikipedia.org/wiki/1811–12_New_Madrid_earthquakes) in 1811 and 1812 near [New Madrid, MO](https://en.wikipedia.org/wiki/New_Madrid,_Missouri). These earthquakes have been estimated to be the [most powerful ones](https://en.wikipedia.org/wiki/List_of_earthquakes_in_the_United_States) to occur east of the Rocky Mountains in recorded history. This area was also rated by the USGS in 2014 as having some of the highest earthquake hazard levels in the continental United States east of the Rocky Mountains:
 
 ![](https://earthquake.usgs.gov/hazards/hazmaps/conterminous/2014/images/HazardMap2014_lg.jpg)
 
@@ -24,7 +24,7 @@ There are four notebooks included in the `doc` subdirectory. The intended progre
 4. `LeafletQuakes.Rmd` - creation of an interactive maps of both the point and county earthquake data
 
 ## `ggplot2` Note
-The CRAN release of `ggplot2` does not include the `geom_sf()` geom for plotting simple features. This tutorial therefore requires the [development version](https://github.com/tidyverse/ggplot2), which you can install from GitHub using the `devtools` package. s
+The CRAN release of `ggplot2` does not include the `geom_sf()` geom for plotting simple features. This tutorial therefore requires the [development version](https://github.com/tidyverse/ggplot2), which you can install from GitHub using the `devtools` package.
 
 ## Sample Output
 The `CreateQuakes.Rmd` notebook creates a shapefile of earthquakes in Missouri between 1973 and 2017 that were at least 2.0 on the [Richter scale](https://en.wikipedia.org/wiki/Richter_magnitude_scale). These data can be [previewed in this repository](/results/GEO_Earthquakes/GEO_Earthquakes.geojson).
