@@ -18,15 +18,54 @@ library(rio)          # data import
 library(skimr)        # descriptive statistics
 
 library(tigris)       # download census shapefiles
+
+library(here)         # project organization
+library(knitr)        # project documentation
 ```
 
+## Project Set Up
+Since our notebook resides in a subdirectory of the R project called `doc`, all relative paths to folders as in the `import("data/earthquakes.csv")` are assumed to subdirectories of `doc`. This, of course, is not the case. Rather, we want our notebook to assume that relatve paths of the folder with the R project file in it. We can use 
+
+```{r setup}
+opts_knit$set(root.dir = here())
+```
+
+This is a critically important step. It allows us to continue using relative paths **and** a logical, sustainable file system. Moreover, we can do this while also not using the `setwd()` function, which would be used to "hard code" a file path like `setwd("/Users/jsmith/Documents/SOC5650/MOEarthquakes")`. The `here()` function finds a project's root directory, and can be used to direct `knitr` appropriately. The beauty of this arrangement is that this file can be executed on *any* computer, since `here()` will always resolve to the appropriate project directory for `MOEarthquakes`. Doing so increases the reproducibility of our work.
 
 ## Obtaining Raw Data
 The data were obtained from the [USGS Earthquake Catalog](https://earthquake.usgs.gov/earthquakes/search/). The search parameters used were for earthquakes of at least a magnitude of `2.0` between `1973-01-01 00:00:00` and `2017-12-31 23:59:59`. A custom rectanlge around Missouri was drawn that covered the following coordinates - [`35.909, 40.699`] Latitude and [`-95.845, -88.989`] Longitude. These were output as `CSV` data and ordered with the oldest event first. They were saved to the file `earthquakes.csv` available in this repository.
 
 ```{r}
-quakes <- import("earthquakes.csv")
+quakes <- import("data/earthquakes.csv")
 ```
+
+## Cleaning the Earthquake Data
+Our first task is the clean the earthquake data. The [USGS Earthquake Catalog](https://earthquake.usgs.gov/earthquakes/search/) does not allow for searching by political geographies but rather requires us to download all earthquakes that occur in a rectangular area. Given Missouri's shape, this means we have downloaded a number of earthquakes that occured in surrounding states. We want to remove those from our data set, and will do so using a technique called a 'spatial join'.
+
+### Obtaining Spatial Data
+We'll start by downloading geometric data for all states using the `tigris` package, and then convert it to a simple feature object. Simple feature objects are an effecient and easy way to work with spatial data in `r`. However, they are relatively new and older packages like `tigirs` do not use simple features by default. What we really need is just the Missouri state boundary, so we'll extract that from the larger data set after we download and convert the data.
+
+```{r}
+# download us states data
+us <- states(year = 2015)
+
+# convert to simple feature
+us <- st_as_sf(us)
+
+# extract missouri data
+mo <- filter(us, GEOID == "29")
+
+# remove states data
+rm(us)
+```
+
+We can check that the conversion worked by making a simple map of Missouri using the `geom_sf()` geom from `ggplot2`. *This geom is currently only available from the development version, which needs to be downloaded and installed from GitHub.*
+
+```{r}
+ggplot() +
+  geom_sf(data = mo)
+```
+
 
 ## Initial Exploration of the Data
 Magnitude of earthquakes is measured using the [Richter scale](https://en.wikipedia.org/wiki/Richter_magnitude_scale). Earthquakes between 2 and 3.9 are considered minor with damage rarely reported. Earthquakes between 4 and 4.9 are considered light, with some minor damage (like objects falling inside buildings). Earthquakes with magnitudes greater than 5 cause increasingly greater amounts of damage. A lesser understood point is that the Richter scale is logrithmic and not linear, meaning that the power of an earthquake increases dramatically with each whole number increase on the scale.
@@ -63,29 +102,4 @@ ggplot(quakes, mapping = aes(x = year, y = mag)) +
   geom_smooth()
 ```
 
-There is no real increase or decrease in the typical magnitude of earthquakes over each year in the data set.
-
-## Mapping Earthquakes
-We'll start by downloading a shapefile of all states using the `tigris` package, and then convert it to a simple feature object. What we really need is just the Missouri state boundary, so we'll extract that from the larger data set.
-
-```{r}
-# download us states data
-us <- states(year = 2015)
-
-# convert to simple feature
-us <- st_as_sf(us)
-
-# extract missouri data
-mo <- filter(us, GEOID == "29")
-
-# remove states data
-rm(us)
-```
-
-We can check that the conversion worked by making a simple map of Missouri using the `geom_sf()` geom from `ggplot2`. *This geom is currently only available from the development version.*
-
-```{r}
-ggplot() +
-  geom_sf(data = mo)
-```
-
+There is no real increase or decrease in the typical magnitude of earthquakes over each year in the data set. 
