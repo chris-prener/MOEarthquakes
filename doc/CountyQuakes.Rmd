@@ -1,0 +1,184 @@
+---
+title: "Mapping Earthquakes by County in Missouri"
+author: "Christopher Prener, Ph.D."
+date: "January 14, 2017"
+output: html_notebook
+---
+
+## Introduction
+This notebook details a further exploration of a data set of earthquakes in Missouri by aggregating earthquake data by county. We created the shapefile referenced here in `CreateQuakes.Rmd`.
+
+## Project Set Up
+Before proceeding, we'll make sure our notebook is set up to work with our project data structure.
+
+```{r setup}
+knitr::opts_knit$set(root.dir = here::here())
+```
+
+See `CreateQuakes.Rmd` for an explanation of how this function works.
+
+## Dependencies
+The following packages are required for this notebook:
+
+```{r}
+library(dplyr)        # data wrangling
+library(ggplot2)      # plotting
+
+library(sf)           # spatial data tool
+library(tigris)       # download census shapefiles
+
+library(ggthemes)     # ggplot2 theme for mapping
+library(RColorBrewer) # color ramps for plotting and mapping
+```
+
+## Load Earthquake Data
+We'll want to start by reading the earthquake data we created previous into R's global environment. We can use the `read_sf()` function to accomplish this:
+
+```{r}
+moQuakes <- read_sf("results/GEO_Earthquakes/GEO_Earthquakes.shp")
+```
+
+## Download and Clean County Spatial Data
+We have previously used `tigris` to download spatial data from the U.S. Census Bureau's TIGER/Line database. Now, we'll use it to download county-level data. These data require some quick cleaning before we map them.
+
+### Download
+Unlike the state data, we can download the county data specifically for Missouri. You can use either a state's [two letter postal abbreviation](https://pe.usps.com/text/pub28/28apb.htm) or a [state's two digit FIPS code](https://www.census.gov/geo/reference/ansi_statetables.html). As before, we'll convert it to a simple features geometric object after we download it.
+
+```{r}
+# download missouri data
+moCounty <- counties(state = "MO", year = 2015)
+
+# convert to simple feature
+moCounty <- st_as_sf(moCounty)
+```
+
+### Clean
+The `str()` function reveals a wide range of variables within the `moCounty` data:
+
+```{r}
+str(moCounty)
+```
+
+These are the key variables included in their definitions:
+
+- `STATEFP` is the state FIPS code noted in the previous secion. 
+- `COUNTYFP` value is the corresponding three digit value for the county or, in the case of the City of St. Louis, the county equivalent (St. Louis is an ["independent city"](https://en.wikipedia.org/wiki/Independent_city_(United_States)). 
+- `GEOID` variable is a concatenation of these two identification numbers. Note that while `COUNTYFP` codes are recycled from state to state, the addition of the `STATEFP` id numbers makes each five digit `GEOID` number unique. 
+- `NAMELSAD` concatenates the place name with the type of census geography (County or, in the case of St. Louis, city)
+- `ALAND` is the area of the geography in meters squared
+
+For variables not listed, you can find their definitions in [this Census Bureau guide](https://www2.census.gov/geo/pdfs/maps-data/data/tiger/tgrshp2015/TGRSHP2015_TechDoc_Ch3.pdf). Most of these variables are not routinely used for basic mapping.
+
+We'll use `dplyr` to select only the key variables we are interested in working with in this exercise:
+
+```{r}
+moCounty <- select(moCounty, STATEFP, COUNTYFP, GEOID, NAMELSAD, ALAND)
+```
+
+Again, one the of the advantages of simple features are that they are compatible with tidyverse functions, which make wrangling geometric data a generally straightforward task.
+
+## Spatial Join and Aggregation of Earthquake Data
+Next, we want to determine how many earthquakes occur per county in Missouri. As in `CreateQuakes.Rmd`, we'll use a "pipeline" to order our functions for this step. Remember that each time you see the `%>%` operator, think of the word "then". We can read this pipeline like so:
+
+1. Take the `moQuakes` data and **then**
+2. Combine it with the `moCounty` data using a spatial join, **then**
+3. Group the observations by the `GEOID`, which uniquely identifies counties in Missouri, **then**
+4. Create frequency counts of the number of earthquakes in each county, **then**
+5. Rename the resulting variable to `COUNT`, **then**
+6. Remove the geometric reference data, **then**
+7. Assign the results to a new geometric object named `countyQuakes`
+
+What we will be left with at the end of the pipeline is a data frame (not a simple feature) that contains the aggregated number of earthquakes per county.
+
+```{r}
+moQuakes  %>%
+  st_join(., moCounty) %>%
+  group_by(GEOID) %>%
+  summarize(n()) %>% 
+  rename(COUNT = `n()`) %>%
+  `st_geometry<-`(NULL) -> countyQuakes
+```
+
+The period in `st_join()` is a placeholder, instructing `st_join()` to reference `moQuakes` at the point in the function where the period appears. The fifth step, which removes the geometric reference data, looks rather ugly but the backticks allow us to include the assignment operator required to set the geometry equal to `NULL`. The equivalent stand alone function would be `st_geometry(countyQuakes) <- NULL`.
+
+## Joining Aggregated Earthquake Data to Counties
+Now that we have aggregated data, we want to merge it back into our full set of county data. We'll use the `dplyr` `inner_join()` function to retain only the county geometries and data for counties that have had at least one earthquake since 1973. If we wanted to keep all of the counties, we could use `left_join()` instead.
+
+```{r}
+countyQuakes <- inner_join(moCounty, countyQuakes, by = "GEOID")
+```
+
+For simplicity's sake, we overwrote our old data frame `countyQuakes` with the new geometric data. Some analysts prefer not to do this. I should also note that it is possible to simplify this process a bit by retaining more variables when we ran the `summarize()` function in the previous section. However, this can get unweildy with shapefiles that have many columns.
+
+### Writing the Results to a Shapefile
+Before we continue, we'll write the results of our geoprocessing to a shapefile so we can use the data later without re-creating it. This will also allow us to open the shapefile in a program like ArcGIS if we wanted to produce a more finished looking map. We'll want to create a folder in the `results` subdirectory to store these files: 
+
+```{r}
+dir.create("results/GEO_EarthquakesByCounty")
+```
+
+With the folder made, we can save the shapefile:
+
+```{r}
+st_write(countyQuakes, "results/GEO_EarthquakesByCounty/GEO_EarthquakesByCounty.shp")
+```
+
+We'll also write these data as a .geojson file so that they can be previewed on GitHub. GeoJSON files are plain-text versions of shapefiles.
+
+```{r}
+st_write(countyQuakes, "results/GEO_EarthquakesByCounty/GEO_EarthquakesByCounty.geojson")
+```
+
+## Mapping Earthquakes by County
+Our next step is to map our data. As before, we'll want to map it using the UTM 15N projected coordinate system, which means we need to transform both our `countyQuakes` and `moCounty` data:
+
+```{r}
+moCounty <- st_transform(moCounty, crs = 26915)
+countyQuakes <- st_transform(countyQuakes, crs = 26915)
+```
+
+With the projeted coordinate system set, we can now map them:
+
+```{r}
+ggplot() +
+  geom_sf(data = moCounty) +
+  geom_sf(data = countyQuakes, mapping = aes(fill = COUNT))
+```
+
+Our simple map has a couple of issues. The color ramp is in a continuous scale, and the lowest count counties are also the darkest. In cartography, we often use the lowest value ([in color theory sense](https://en.wikipedia.org/wiki/Color_theory), meaning the darkest) hue for the highest numeric values. We can use the `scale_fill_distiller()` function to apply a color ramp from the `RColorBrewer` package (use the function `display.brewer.all()` to produce a graphic of all the available color ramps). The `trans` argument allows us to reverse the scale so that the lowest value hue is associated with the highest number of earthquakes.
+
+```{r}
+ggplot() +
+  geom_sf(data = moCounty, fill = "white") +
+  geom_sf(data = countyQuakes, mapping = aes(fill = COUNT)) +
+  scale_fill_distiller(palette = "Reds", trans = "reverse") +
+  guides(fill = guide_legend(reverse = TRUE))
+```
+
+We can also add theme, title, and caption as we did previously:
+
+```{r}
+countyMap <- ggplot() +
+              geom_sf(data = moCounty, fill = "white") +
+              geom_sf(data = countyQuakes, mapping = aes(fill = COUNT)) +
+              scale_fill_distiller(
+                palette = "Reds", 
+                trans = "reverse",
+                name = "Earthquake \nCount"
+              ) +
+              guides(fill = guide_legend(reverse = TRUE)) +
+              theme_map() +
+              labs(
+                title = "Earthquakes in Missouri by County, 1973-2017",
+                caption = "Data via U.S. Geological Survey and U.S. Census Bureau"
+              )
+
+countyMap
+```
+
+Finally, we can save our map using the `ggsave()` function:
+
+```{r}
+ggsave("results/earthquakesByCounty.png", countyMap)
+```
+
