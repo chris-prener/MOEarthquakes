@@ -1,0 +1,35 @@
+---
+title: "Interactive Mapping with leaflet"
+author: "Christopher Prener, Ph.D."
+date: "January 14, 2017"
+output: html_notebook
+---
+
+## Introduction
+This notebook details the creation of interactive maps using `leaftlet` and a data set of earthquakes in Missouri. We created the shapefiles referenced here in `CreateQuakes.Rmd` and `CountyQuakes.Rmd`.
+
+## Project Set Up
+Before proceeding, we'll make sure our notebook is set up to work with our project data structure.
+
+```{r setup}
+knitr::opts_knit$set(root.dir = here::here())
+```
+
+See `CreateQuakes.Rmd` for an explanation of how this function works.
+
+## Dependencies
+The following packages are required for this notebook:
+
+```{r}
+library(dplyr)        # data wrangling
+library(ggplot2)      # plotting
+
+library(skimr)        # descriptive statistics
+
+library(sf)           # spatial data tool
+library(leaflet)      # download census shapefiles
+
+library(ggthemes)     # ggplot2 theme for mapping
+```
+
+## 
