@@ -27,7 +27,9 @@ library(ggplot2)      # plotting
 library(skimr)        # descriptive statistics
 
 library(sf)           # spatial data tool
-library(leaflet)      # download census shapefiles
+library(tigris)       # download census shapefiles
+library(leaflet)      # interactive maps
+library(htmltools)    # html tools for use with leaflet popups
 
 library(ggthemes)     # ggplot2 theme for mapping
 ```
@@ -71,5 +73,195 @@ leaflet(data = moQuakes) %>%
   addMarkers()
 ```
 
-You can learn more about basemaps in leaftlet [here](https://rstudio.github.io/leaflet/basemaps.html), and see an interactive preview of the various choices [here](http://leaflet-extras.github.io/leaflet-providers/preview/index.html).
+You can learn more about basemaps in `leaflet` [here](https://rstudio.github.io/leaflet/basemaps.html), and see an interactive preview of the various choices [here](http://leaflet-extras.github.io/leaflet-providers/preview/index.html).
+
+## Working with Point Data
+We'll use the earthquake data to introduce a number of concepts for working with point data using `leaflet`.
+
+### Adding Pop-ups
+One of the great things about `leaflet` is that pop-ups can be added to each marker to provide details about the point. For example, we could add information about the date and magnitude of each earthquake. We'll paste a template together into an object in our enviornment that `leaflet` can use for each pop-up like so:
+
+```{r}
+moQuakes <- mutate(moQuakes, date = substr(time, 1, 10))
+
+earthquake_popup <- paste("Date: ", moQuakes$date,  "<br/>", 
+                           "Magnitude: ", moQuakes$mag)
+```
+
+The `<br/>` tag is `html` that places a carriage return into the pop-up text. This will place the date and the magnitude on different lines.
+
+We can insert the pop-up into our map by using the `popup` argument in `addMarkers()` and preceding `earthquake_popup` with a tilde (`~`). When you execute the chunk below, try clicking on different markers to reveal information about the earthquakes.
+
+```{r}
+leaflet(data = moQuakes) %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  addMarkers(popup = ~earthquake_popup)
+```
+
+### Customizing Makers
+`leaflet` has a wide variety of tools for customizing markers. The code chunk below defines three points based on the magnitude of a given earthquake. If the earthquake has a magnitude of less than 3, a green marker will be used. If the magnitude is between 3 and 4, and orange marker will be used. Finally, for the few earthquakes with magnitudes greater than 4, the marker will be red. These points are defined inside a function that we can use as we construction our icons.
+
+```{r}
+# define function to set a color based on magnitude
+getColor <- function(quakeColor) {
+  sapply(moQuakes$mag, function(mag) {
+    if(mag < 3) {
+      "green"
+    } else if(mag < 4) {
+      "orange"
+    } else {
+      "red"
+    } 
+  })
+}
+```
+
+After creating a tool for defining marker colors, we can utiize it as part of the `awesomeIcons()` function call. We'll use the perfectly named [Font Awesome](http://fontawesome.com) library for the marker image, and set the marker color equal to the result of the `getColor()` function we just wrote.
+
+```{r}
+# define icon properties, including setting marker color based on the function we just write
+icons <- awesomeIcons(
+  library = 'fa',
+  icon = 'map-marker-alt',
+  markerColor = getColor(moQuakes)
+)
+```
+
+Now that we have our icons constructed, we'll apply them to an updated version of our map using `addAwesomeMarkers()` in lieu of `add Markers()`:
+
+```{r}
+# apply custom icons
+leaflet(data = moQuakes) %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  addAwesomeMarkers(popup = ~earthquake_popup, icon = icons)
+```
+
+### Clustering Points
+The map above is difficult to read because there are so many points in southeast Missouri. One way to help readers is to cluster points. The `clusterOptions` argument can be included in `addAwesomeMarkers()` and set equal to `markerClusterOptions()`. This will allow `leaflet` to cluster points together based on proximety. The colors used by `leaflet` are very close to our marker colors from before, which is confusing. They do not have anything to do with the magnitude, however. Instead, they reflect the number of child points clustered under each marker (green for few, yellow for a moderate number, and redish-orange for a large number). Hovering your mouse over a custer will reval the boundaries of the included child points, and clicking on a cluster will zoom you in to those boundaries.
+
+```{r}
+# apply custom icons
+leaflet(data = moQuakes) %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  addAwesomeMarkers(
+    popup = ~earthquake_popup, 
+    icon = icons, 
+    clusterOptions = markerClusterOptions()
+  )
+```
+
+## Working with Polygon Data
+We can also use `leaflet` to map polygon data, like our count of earthquakes by county. We'll start by defining pop-up content for counties that have had earthquakes. The process is similar to the process above - we'll concatenate text (including the `<br/>` html tag) and save it in an object named `county_popup`.
+
+```{r}
+county_popup <- paste(countyQuakes$NAMELSAD,  "<br/>", 
+                      "Earthquakes Since 1973: ", countyQuakes$COUNT)
+```
+
+We'll also define a color ramp for mapping and save it in an object called `binpal`. We'll use three breaks and the `Reds` color ramp from `RColorBrewer`, just like we did in our static map created in `CountyQuakes.Rmd`.
+
+```{r}
+binpal <- colorBin("Reds", countyQuakes$COUNT, 3, pretty = FALSE)
+```
+
+Once we have pop-ups and a color ramp created, we'll apply them to a map that uses the `addPolygons()` function in lieu of `addMarkers()`. Within the `addPolygons()`, there are arguments for both the stroke and the fill of each polygon. We also add an additional lay of interactivity that highlights each selected polygon in white.
+
+```{r}
+leaflet(data = countyQuakes) %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  addPolygons(color = "#444444", 
+              weight = 1, 
+              smoothFactor = 0.5,
+              opacity = 1.0, 
+              fillOpacity = 0.5,
+              fillColor = ~binpal(COUNT),
+              popup = ~county_popup, 
+              highlightOptions = highlightOptions(
+                color = "white", 
+                weight = 2,
+                bringToFront = TRUE)
+              )
+```
+
+Notice, however, that there are not county boundaries for counties with no earthquakes. We can add these easily, however. The process is similar to creating a static map in `ggplot2`. We start by downloading the county boundaries from `tigris` and converting them to a simple features geometric object with a WGS84 coordinate system.
+
+```{r}
+# download missouri data
+moCounty <- counties(state = "MO", year = 2015)
+
+# convert to simple feature
+moCounty <- st_as_sf(moCounty)
+
+# transform to WGS84
+moCounty <- st_transform(moCounty, crs = 4326)
+```
+
+Once we have them transformed appropriately, we add the `moCounty` data as a layer *under* the `countyQuakes` data. We do not need to define popups for these (though we could), and since there is no additional interactivity we can also skip setting `highlightOptions()`.
+
+```{r}
+leaflet() %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  addPolygons(data = moCounty, 
+              color = "#444444", 
+              weight = 1, 
+              smoothFactor = 0.5,
+              opacity = 1.0,
+              fillColor = ""
+              ) %>%
+  addPolygons(data = countyQuakes, 
+              color = "#444444", 
+              weight = 1, 
+              smoothFactor = 0.5,
+              opacity = 1.0, 
+              fillOpacity = 0.5,
+              fillColor = ~binpal(COUNT),
+              popup = ~county_popup, 
+              highlightOptions = highlightOptions(
+                color = "white", 
+                weight = 2,
+                bringToFront = TRUE)
+              )
+```
+
+Notice that the colored polygons with earthquake data now appear duller. This is because they are not totally opaque and thus the gray layer below them bleeds through. This behavior can be eliminiated by transforming the `moCounty` data so that it is the compliment of the `countyQuakes` data - i.e. it contains only counties without earthquakes. We create a pipeline that:
+
+1. Take the `countyQuakes` data and **then**
+2. Remove the geometric reference data, **then**
+3. Joins these data with `moCounty`, **then**
+4. Removes observations that have valid counts, **then**
+5. Assigns the results to a new geometric object named `countyNoQuakes`
+
+```{r}
+countyQuakes %>%
+  `st_geometry<-`(NULL) %>%
+  left_join(moCounty, ., by = "GEOID") %>%
+  filter(is.na(COUNT) == TRUE) -> countyNoQuakes
+```
+
+We can take our newly created data and replace `moCounty` with it in the first `addPolygons()` function call. This will restore the brightness of the `countyQuakes` polygons:
+
+```{r}
+leaflet() %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  addPolygons(data = countyNoQuakes, 
+              color = "#444444", 
+              weight = 1, 
+              smoothFactor = 0.5,
+              opacity = 1.0,
+              fillColor = ""
+              ) %>%
+  addPolygons(data = countyQuakes, 
+              color = "#444444", 
+              weight = 1, 
+              smoothFactor = 0.5,
+              opacity = 1.0, 
+              fillOpacity = 0.5,
+              fillColor = ~binpal(COUNT),
+              popup = ~county_popup, 
+              highlightOptions = highlightOptions(
+                color = "white", 
+                weight = 2,
+                bringToFront = TRUE)
+              )
+```
 
