@@ -28,25 +28,43 @@ library(skimr)        # descriptive statistics
 
 library(sf)           # spatial data tool
 library(tigris)       # download census shapefiles
+
+library(ggthemes)     # ggplot2 theme for mapping
 ```
 
 ## Load Earthquake Data
-We'll want to start by reading the earthquake data we created previous into R's global enviornment. We can use the `read_sf()` function to accomplish this:
+We'll want to start by reading the earthquake data we created previous into R's global environment. We can use the `read_sf()` function to accomplish this:
 
 ```{r}
 moQuakes <- read_sf("results/GEO_Earthquakes/GEO_Earthquakes.shp")
 ```
 
-## Descriptive Statistics
-Magnitude of earthquakes is measured using the [Richter scale](https://en.wikipedia.org/wiki/Richter_magnitude_scale). Earthquakes between 2 and 3.9 are considered minor with damage rarely reported. Earthquakes between 4 and 4.9 are considered light, with some minor damage (like objects falling inside buildings). Earthquakes with magnitudes greater than 5 cause increasingly greater amounts of damage (spoiler, there are not any earthquakes this strong in our Missouri data!). A lesser understood point is that the Richter scale is logrithmic and not linear, meaning that the power of an earthquake increases dramatically with each whole number increase on the scale.
+### Magnitude Measurements of Earthquakes
+Magnitude of earthquakes is measured using the [Richter scale](https://en.wikipedia.org/wiki/Richter_magnitude_scale). Earthquakes between 2 and 3.9 are considered minor with damage rarely reported. Earthquakes between 4 and 4.9 are considered light, with some minor damage (like objects falling inside buildings). Earthquakes with magnitudes greater than 5 cause increasingly greater amounts of damage (spoiler, there are not any earthquakes this strong in our Missouri data!). A lesser understood point is that the Richter scale is logarithmic and not linear, meaning that the power of an earthquake increases dramatically with each whole number increase on the scale.
 
-We'll start by using `skimr` to create a quick summary of the magnitude variable:
+## Data Wrangling
+There are two variables we'll use in this file that we need to create. The first is a variable representing the year of each earthquake and the second is a binary measure that represents whether the earthquake had a magnitude greater than or equal to 4.0 on the Richter scale. We do this in another "pipeline". This one can be read like so:
+
+1. Take the `moQuakes` data and **then**
+2. Create a new variable named `year` that contains the first four characters from the `time` variable, **then**
+3. Create a new variable named `magBin` that is `TRUE` if the magnitude is greater than or equal to 4 and `FALSE` if it is less than 4, **then**
+4. Assign those changes to the `moQuakes` object.
 
 ```{r}
-skim(moQuakes, mag)
+moQuakes %>%
+  mutate(year = as.integer(substr(time, 1, 4))) %>%
+  mutate(magBin = ifelse(mag >= 4.0, TRUE, FALSE)) -> moQuakes
 ```
 
-The most powerful earthquake in the data was a 4.8 magnitude earthquake, and we can see that the bulk of the observations are clustered on the lefthand side of the distribution (half of all observations are between 2 and 2.5). Notice this note included with our output - the `skimr` package does not work seemlessly with simple features.
+
+## Descriptive Statistics
+We'll start by using `skimr` to create a quick summary of the magnitude and magnitude binary variables:
+
+```{r}
+skim(moQuakes, mag, magBin)
+```
+
+The most powerful earthquake in the data was a 4.8 magnitude earthquake, and we can see that the bulk of the observations are clustered on the left hand side of the distribution (half of all observations are between 2 and 2.5). On our binary measure, we can see that only .8% of observations are `TRUE` (meaning they have a magnitude greater than or equal to 4.0). Also notice this note included with our output - the `skimr` package does not work seamlessly with simple features.
 
 ## Exploratory Data Analysis
 We can get a more detailed visual summary of the distribution of earthquake magnitudes by creating a histogram of their magnitude:
@@ -56,27 +74,19 @@ ggplot(data = moQuakes, mapping = aes(mag)) +
   geom_histogram(bins = 28)
 ```
 
-We can also look at earthquake frequency over time by creating a year variable and then making another histogram. The year variable is made by extracting the first four characters of the `time` variable, which are always the year in these data. We do this in another "pipeline". This one can be read like so:
-
-1. Take the `moQuakes` data and **then**
-2. Create a new variable named `year` that contains the first four characters from the `time` variable, **then**
-3. Create a histogram of these data using `ggplot2`
+We can also look at earthquake frequency over time by creating a year variable and then making another histogram. The year variable is made by extracting the first four characters of the `time` variable, which are always the year in these data. 
 
 ```{r}
-moQuakes %>%
-  mutate(year = as.integer(substr(time, 1, 4))) %>%
-  ggplot(moQuakes, mapping = aes(year)) +
-    geom_histogram(bins = 45)
+ggplot(data = moQuakes, mapping = aes(year)) +
+  geom_histogram(bins = 45)
 ```
 
 There does seem to be some patterning, with a peak in the mid-1980s and a recent increase after 2010. 
 
 ```{r}
-moQuakes %>%
-  mutate(year = as.integer(substr(time, 1, 4))) %>%
-  ggplot(moQuakes, mapping = aes(x = year, y = mag)) +
-    geom_point() +
-    geom_smooth(method = lm, position = "jitter")
+ggplot(data = moQuakes, mapping = aes(x = year, y = mag)) +
+  geom_point() +
+  geom_smooth(method = lm, position = "jitter")
 ```
 
 There is no real increase or decrease in the typical magnitude of earthquakes over each year in the data set. We can see again the increase in earthquake activity in the last three years.
@@ -106,14 +116,69 @@ ggplot() +
   geom_sf(data = moQuakes)
 ```
 
-We can extend this `ggplot2` syntax to create a slightly more complex map that shows all of the earthquakes in our data set but highlights the most severe. Thhe use of grey for all of the earthquakes and red relies on a perceptual technique known as [figure-ground](https://en.wikipedia.org/wiki/Figure–ground_%28perception%29). This is a common technique in cartography used to provide visual context while emphasizing particular data points.
+### Basic Cartography with `ggplot2`
+We can extend this `ggplot2` syntax to create a slightly more complex map that shows all of the earthquakes in our data set but highlights the most severe. To do this, we'll utilize our `magBin` variable. In the second layer, after the Missouri boundary itself, we'll use the aesthetic mapping to argument to set the color of the points equal to the values of `magBin`.
+
+By itself, this would yield a map that has green points for the most severe of the earthquakes and red points for all of the less severe ones. This is not the most ideal color palette for mapping. Instead, we'll use two tricks to emphasize the severe earthquakes while reemphasizing the less severe one. In both cases, we'll rely on a perceptual technique known as [figure-ground](https://en.wikipedia.org/wiki/Figure–ground_%28perception%29). This technique is used to draw our readers' attention away from the background and towards the figure (or topic of interest), and is a key tool for cartographic design. 
+
+The first way we'll accomplish this is by using a gray hue (hex `#909090`) for the earthquakes with less severe magnitudes. By treating them as a ground layer (like the Missouri boundary), we reemphasize them while still including them for context. We use a bright red hue (hex `#f8766d`, a hue that will be familiar with regular users of `ggplot2`) to make the more severe earthquakes stand out as figure. These color definitions are accomplished by defining them using the `scale_color_manual()` function after all of the geoms are specified.
+
+One additional trick we use to make the more severe earthquakes stand out is to add a stroke (i.e. border) around a point to make it stand out further. This is particularly helpful on this map, where the point size is small. To do this, we add a layer of points on top of our main data points. We can subset the data within this `geom_sf()` call using the `filter()` function from `dplyr`. This is a useful technique when you want specific elements of a single layer to be displayed in unique ways. We select only the points where `magBin` is `TRUE` and define their symbols as hollow circles with black strokes. The thin stroke applied is just enough to make the points stand out without obscuring their red fill.
 
 ```{r}
-moQuakes %>%
-  mutate(magBin = ifelse(mag >= 4.0, TRUE, FALSE)) %>%
-  ggplot() +
-    geom_sf(data = mo) +
-    geom_sf(mapping = aes(color = magBin)) +
-    scale_color_manual(values = c("#909090", "#f8766d"))
+ggplot() +
+  geom_sf(data = mo) +
+  geom_sf(data = moQuakes, mapping = aes(color = magBin)) +
+  geom_sf(data = filter(moQuakes, magBin == TRUE), color = "black", pch = 21) +
+  scale_color_manual(values = c("#909090", "#f8766d"))
+```
+
+### Adjusting the Coordinate System
+In `CreateQuakes.Rmd`, we briefly noted at the earthquake data were created using the NAD1983 geographic coordinate system. NAD1983 is a geographic coordinate system, meaning that it is based on a three-dimensional model of the earth. There are several drawbacks to using geographic coordinate systems for mapping and GIS work, including the fact that our maps are typically only two-dimensional. To convert our data so that it "fits" well on a two-dimensional surface (like a sheet of paper or a screen), we use projected coordinate systems.
+
+There are two major groups of projected coordinate systems used for mapping at the state and local level in the United States. One, the [state plane system](https://en.wikipedia.org/wiki/State_Plane_Coordinate_System) and the [Universal Transverse Mercator (UTM) system](https://en.wikipedia.org/wiki/Universal_Transverse_Mercator_coordinate_system). Both of these projections have pros and cons. In Missouri, for example, there are three state plane zones. Areas within the appropriate zone will be mapped with a low degree of distortion, thus making state plane useful for mapping at the local level (a municipality or a county, for example). However, data outside of the zone will be significantly distorted in some cases, making the state plane system problematic for regional or state-wide mapping.
+
+The UTM system, on the other hand, does not adhere to local government or state boundaries. Once this occurs, some distortion can be expected. For counties that straddle UTM zones, then, there are drawbacks to using UTM. However, for state-wide mapping in Missouri, the UTM system is a better choice because we have multiple state plane zones. We typically use UTM Zone 15N because it covers the vast majority of the state. The bootheel of Missouri lies in Zone 16N, but the area is small enough that distortions are not significant for most mapping applications.
+
+To transform our data from NAD1983 to UTM 15N, we need to know the crs code for UTM 15N, which is `26915`. We then use the `st_transform()` function to assign a new coordinate system to both of our geometric data objects:
+
+```{r}
+mo <- st_transform(mo, crs = 26915)
+moQuakes <- st_transform(moQuakes, crs = 26915)
+```
+
+For the remainder of this notebook, we'll use these transformed objects for mapping.
+
+### Map Layouts with `ggplot2` and `ggthemes`
+We can customize our map layout further using tools from both `ggplot2` and the [`ggthemes` package](https://github.com/jrnold/ggthemes). `ggthemes` offers an array of theme choices for `ggplot2` including a mapping specific one that can be invoked using the `theme_map()` function. This will remove the trademark gray background as well as the x and y axis ticks for each degree of longitude and latitude. It will also move the legend.
+
+We can update the legend further by adding arguments to the `scale_color_manual()` function. In the previous map, it is named for the variable it represents, `magBin`, and has labels for the variable's two values, `TRUE` and `FALSE`. We can use the `name` argument to provide a custom name for the legend and the labels argument to change the labels to something easier to understand for our readers.
+
+Finally, we can use the `labs()` function to add a title, subtitle, and a caption to the plot.
+
+```{r}
+quakeMap <- ggplot() +
+              geom_sf(data = mo) +
+              geom_sf(data = moQuakes, mapping = aes(color = magBin)) +
+              geom_sf(data = filter(moQuakes, magBin == TRUE), color = "black", pch = 21) +
+              scale_color_manual(
+                values = c("#909090", "#f8766d"), 
+                name = "Magnitude",
+                labels = c("< 4.0", ">= 4.0")
+              ) +
+              theme_map() +
+              labs(
+                title = "Earthquakes in Missouri, 1973-2017",
+                subtitle = "Higher Magnitude Earthquakes (n=8) Emphasized",
+                caption = "Data via U.S. Geological Survey and U.S. Census Bureau"
+              )
+
+quakeMap
+```
+
+Finally, we can save our map using the `ggsave()` function:
+
+```{r}
+ggsave("results/earthquakeMap.png", quakeMap)
 ```
 
