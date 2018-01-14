@@ -5,6 +5,7 @@ This repository has two goals. One, it provides an example of the project direct
 
 Two, it provides working examples of a number of key skills for sociospatial data science:
 
+* projecting tabular data that contains spatial references using [`sf`](https://r-spatial.github.io/sf/)
 * accessing spatial data via [`tigris`](https://cran.r-project.org/web/packages/tigris/index.html)
 * cleaning and geoprocessing spatial data with [`dplyr`](http://dplyr.tidyverse.org) and [`sf`](https://r-spatial.github.io/sf/)
 * exploring patterns in spatial data [`ggplot2`](http://ggplot2.tidyverse.org) and [`RColorBrewer`](https://cran.r-project.org/web/packages/RColorBrewer/index.html)
