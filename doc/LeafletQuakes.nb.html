@@ -198,26 +198,84 @@ $(document).ready(function () {
 <p>The following packages are required for this notebook:</p>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeShkcGx5cikgICAgICAgICMgZGF0YSB3cmFuZ2xpbmdcbmxpYnJhcnkoZ2dwbG90MikgICAgICAjIHBsb3R0aW5nXG5cbmxpYnJhcnkoc2tpbXIpICAgICAgICAjIGRlc2NyaXB0aXZlIHN0YXRpc3RpY3NcblxubGlicmFyeShzZikgICAgICAgICAgICMgc3BhdGlhbCBkYXRhIHRvb2xcbmxpYnJhcnkobGVhZmxldCkgICAgICAjIGRvd25sb2FkIGNlbnN1cyBzaGFwZWZpbGVzXG5cbmxpYnJhcnkoZ2d0aGVtZXMpICAgICAjIGdncGxvdDIgdGhlbWUgZm9yIG1hcHBpbmdcbmBgYCJ9 -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeShkcGx5cikgICAgICAgICMgZGF0YSB3cmFuZ2xpbmdcbmxpYnJhcnkoZ2dwbG90MikgICAgICAjIHBsb3R0aW5nXG5saWJyYXJ5KHNraW1yKSAgICAgICAgIyBkZXNjcmlwdGl2ZSBzdGF0aXN0aWNzXG5gYGAifQ== -->
 <pre class="r"><code>library(dplyr)        # data wrangling
 library(ggplot2)      # plotting
+library(skimr)        # descriptive statistics</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-output-begin eyJkYXRhIjoiXG5BdHRhY2hpbmcgcGFja2FnZTog4oCYc2tpbXLigJlcblxuVGhlIGZvbGxvd2luZyBvYmplY3RzIGFyZSBtYXNrZWQgZnJvbSDigJhwYWNrYWdlOmRwbHly4oCZOlxuXG4gICAgY29udGFpbnMsIGVuZHNfd2l0aCwgZXZlcnl0aGluZywgbWF0Y2hlcywgbnVtX3JhbmdlLCBvbmVfb2YsIHN0YXJ0c193aXRoXG4ifQ== -->
+<pre><code>
+Attaching package: ‘skimr’
 
-library(skimr)        # descriptive statistics
+The following objects are masked from ‘package:dplyr’:
 
-library(sf)           # spatial data tool
+    contains, ends_with, everything, matches, num_range, one_of, starts_with</code></pre>
+<!-- rnb-output-end -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeShzZikgICAgICAgICAgICMgc3BhdGlhbCBkYXRhIHRvb2xcbmxpYnJhcnkobGVhZmxldCkgICAgICAjIGRvd25sb2FkIGNlbnN1cyBzaGFwZWZpbGVzXG5saWJyYXJ5KGdndGhlbWVzKSAgICAgIyBnZ3Bsb3QyIHRoZW1lIGZvciBtYXBwaW5nXG5gYGAifQ== -->
+<pre class="r"><code>library(sf)           # spatial data tool
 library(leaflet)      # download census shapefiles
-
 library(ggthemes)     # ggplot2 theme for mapping</code></pre>
 <!-- rnb-source-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 </div>
-<div id="section" class="section level2">
-<h2></h2>
+<div id="load-earthquake-data" class="section level2">
+<h2>Load Earthquake Data</h2>
+<p>We’ll want to start by reading the earthquake data we created previously into R’s global environment. We can use the <code>read_sf()</code> function to accomplish this:</p>
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubW9RdWFrZXMgPC0gcmVhZF9zZihcInJlc3VsdHMvR0VPX0VhcnRocXVha2VzL0dFT19FYXJ0aHF1YWtlcy5zaHBcIilcbmNvdW50eVF1YWtlcyA8LSByZWFkX3NmKFwicmVzdWx0cy9HRU9fRWFydGhxdWFrZXNCeUNvdW50eS9HRU9fRWFydGhxdWFrZXNCeUNvdW50eS5zaHBcIilcbmBgYCJ9 -->
+<pre class="r"><code>moQuakes &lt;- read_sf(&quot;results/GEO_Earthquakes/GEO_Earthquakes.shp&quot;)
+countyQuakes &lt;- read_sf(&quot;results/GEO_EarthquakesByCounty/GEO_EarthquakesByCounty.shp&quot;)</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<p><code>leaflet</code> returns warnings about data that do not use the <a href="https://en.wikipedia.org/wiki/World_Geodetic_System">World Geodetic System’s</a> 1984 revision, known as WGS84. Like NAD1983, WGS84 is a geographic coordinate system designed for worldwide locating of data. We can transform both of our shapefiles, which were created using NAD1983:</p>
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubW9RdWFrZXMgPC0gc3RfdHJhbnNmb3JtKG1vUXVha2VzLCBjcnMgPSA0MzI2KVxuY291bnR5UXVha2VzIDwtIHN0X3RyYW5zZm9ybShjb3VudHlRdWFrZXMsIGNycyA9IDQzMjYpXG5gYGAifQ== -->
+<pre class="r"><code>moQuakes &lt;- st_transform(moQuakes, crs = 4326)
+countyQuakes &lt;- st_transform(countyQuakes, crs = 4326)</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+</div>
+<div id="simple-leaflet-map" class="section level2">
+<h2>Simple Leaflet Map</h2>
+<p>With our transformed data, we can make a simple <code>leaflet</code> map of earthquake locations in Missouri. Our pipeline requires three elements:</p>
+<ol style="list-style-type: decimal">
+<li>We need to call the <code>leaflet()</code> functin and define the data source as <code>moQuakes</code>, <strong>then</strong></li>
+<li>We need to add map tiles using <code>addTiles()</code>, <strong>then</strong></li>
+<li>We need to project our point data using <code>addMarkers()</code></li>
+</ol>
+<p>The tiles refer to the basemap, which is sourced from <a href="http://openstreetmap.org">OpenStreetMap</a> by default.</p>
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGVhZmxldChkYXRhID0gbW9RdWFrZXMpICU+JVxuICBhZGRUaWxlcygpICU+JVxuICBhZGRNYXJrZXJzKClcbmBgYCJ9 -->
+<pre class="r"><code>leaflet(data = moQuakes) %&gt;%
+  addTiles() %&gt;%
+  addMarkers()</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+</div>
+<div id="changing-the-basemap" class="section level2">
+<h2>Changing the Basemap</h2>
+<p>For mapping detailed data, I find the OpenStreetMap basemap has too many labels and markers on it. I prefer a simpler basemap, and luckily <code>leaflet</code> has the ability to pick from dozens of options. We can specify our preference using <code>addProviderTiles()</code> instead of <code>addTiles()</code>:</p>
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGVhZmxldChkYXRhID0gbW9RdWFrZXMpICU+JVxuICBhZGRQcm92aWRlclRpbGVzKHByb3ZpZGVycyRDYXJ0b0RCLlBvc2l0cm9uKSAlPiVcbiAgYWRkTWFya2VycygpXG5gYGAifQ== -->
+<pre class="r"><code>leaflet(data = moQuakes) %&gt;%
+  addProviderTiles(providers$CartoDB.Positron) %&gt;%
+  addMarkers()</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<p>You can learn more about basemaps in leaftlet <a href="https://rstudio.github.io/leaflet/basemaps.html">here</a>, and see an interactive preview of the various choices <a href="http://leaflet-extras.github.io/leaflet-providers/preview/index.html">here</a>.</p>
 <!-- rnb-text-end -->
 </div>
 
-<div id="rmd-source-code">LS0tCnRpdGxlOiAiSW50ZXJhY3RpdmUgTWFwcGluZyB3aXRoIGxlYWZsZXQiCmF1dGhvcjogIkNocmlzdG9waGVyIFByZW5lciwgUGguRC4iCmRhdGU6ICJKYW51YXJ5IDE0LCAyMDE3IgpvdXRwdXQ6IGh0bWxfbm90ZWJvb2sKLS0tCgojIyBJbnRyb2R1Y3Rpb24KVGhpcyBub3RlYm9vayBkZXRhaWxzIHRoZSBjcmVhdGlvbiBvZiBpbnRlcmFjdGl2ZSBtYXBzIHVzaW5nIGBsZWFmdGxldGAgYW5kIGEgZGF0YSBzZXQgb2YgZWFydGhxdWFrZXMgaW4gTWlzc291cmkuIFdlIGNyZWF0ZWQgdGhlIHNoYXBlZmlsZXMgcmVmZXJlbmNlZCBoZXJlIGluIGBDcmVhdGVRdWFrZXMuUm1kYCBhbmQgYENvdW50eVF1YWtlcy5SbWRgLgoKIyMgUHJvamVjdCBTZXQgVXAKQmVmb3JlIHByb2NlZWRpbmcsIHdlJ2xsIG1ha2Ugc3VyZSBvdXIgbm90ZWJvb2sgaXMgc2V0IHVwIHRvIHdvcmsgd2l0aCBvdXIgcHJvamVjdCBkYXRhIHN0cnVjdHVyZS4KCmBgYHtyIHNldHVwfQprbml0cjo6b3B0c19rbml0JHNldChyb290LmRpciA9IGhlcmU6OmhlcmUoKSkKYGBgCgpTZWUgYENyZWF0ZVF1YWtlcy5SbWRgIGZvciBhbiBleHBsYW5hdGlvbiBvZiBob3cgdGhpcyBmdW5jdGlvbiB3b3Jrcy4KCiMjIERlcGVuZGVuY2llcwpUaGUgZm9sbG93aW5nIHBhY2thZ2VzIGFyZSByZXF1aXJlZCBmb3IgdGhpcyBub3RlYm9vazoKCmBgYHtyfQpsaWJyYXJ5KGRwbHlyKSAgICAgICAgIyBkYXRhIHdyYW5nbGluZwpsaWJyYXJ5KGdncGxvdDIpICAgICAgIyBwbG90dGluZwoKbGlicmFyeShza2ltcikgICAgICAgICMgZGVzY3JpcHRpdmUgc3RhdGlzdGljcwoKbGlicmFyeShzZikgICAgICAgICAgICMgc3BhdGlhbCBkYXRhIHRvb2wKbGlicmFyeShsZWFmbGV0KSAgICAgICMgZG93bmxvYWQgY2Vuc3VzIHNoYXBlZmlsZXMKCmxpYnJhcnkoZ2d0aGVtZXMpICAgICAjIGdncGxvdDIgdGhlbWUgZm9yIG1hcHBpbmcKYGBgCgojIyA=</div>
+<div id="rmd-source-code">LS0tCnRpdGxlOiAiSW50ZXJhY3RpdmUgTWFwcGluZyB3aXRoIGxlYWZsZXQiCmF1dGhvcjogIkNocmlzdG9waGVyIFByZW5lciwgUGguRC4iCmRhdGU6ICJKYW51YXJ5IDE0LCAyMDE3IgpvdXRwdXQ6IGh0bWxfbm90ZWJvb2sKLS0tCgojIyBJbnRyb2R1Y3Rpb24KVGhpcyBub3RlYm9vayBkZXRhaWxzIHRoZSBjcmVhdGlvbiBvZiBpbnRlcmFjdGl2ZSBtYXBzIHVzaW5nIGBsZWFmdGxldGAgYW5kIGEgZGF0YSBzZXQgb2YgZWFydGhxdWFrZXMgaW4gTWlzc291cmkuIFdlIGNyZWF0ZWQgdGhlIHNoYXBlZmlsZXMgcmVmZXJlbmNlZCBoZXJlIGluIGBDcmVhdGVRdWFrZXMuUm1kYCBhbmQgYENvdW50eVF1YWtlcy5SbWRgLgoKIyMgUHJvamVjdCBTZXQgVXAKQmVmb3JlIHByb2NlZWRpbmcsIHdlJ2xsIG1ha2Ugc3VyZSBvdXIgbm90ZWJvb2sgaXMgc2V0IHVwIHRvIHdvcmsgd2l0aCBvdXIgcHJvamVjdCBkYXRhIHN0cnVjdHVyZS4KCmBgYHtyIHNldHVwfQprbml0cjo6b3B0c19rbml0JHNldChyb290LmRpciA9IGhlcmU6OmhlcmUoKSkKYGBgCgpTZWUgYENyZWF0ZVF1YWtlcy5SbWRgIGZvciBhbiBleHBsYW5hdGlvbiBvZiBob3cgdGhpcyBmdW5jdGlvbiB3b3Jrcy4KCiMjIERlcGVuZGVuY2llcwpUaGUgZm9sbG93aW5nIHBhY2thZ2VzIGFyZSByZXF1aXJlZCBmb3IgdGhpcyBub3RlYm9vazoKCmBgYHtyfQpsaWJyYXJ5KGRwbHlyKSAgICAgICAgIyBkYXRhIHdyYW5nbGluZwpsaWJyYXJ5KGdncGxvdDIpICAgICAgIyBwbG90dGluZwoKbGlicmFyeShza2ltcikgICAgICAgICMgZGVzY3JpcHRpdmUgc3RhdGlzdGljcwoKbGlicmFyeShzZikgICAgICAgICAgICMgc3BhdGlhbCBkYXRhIHRvb2wKbGlicmFyeShsZWFmbGV0KSAgICAgICMgZG93bmxvYWQgY2Vuc3VzIHNoYXBlZmlsZXMKCmxpYnJhcnkoZ2d0aGVtZXMpICAgICAjIGdncGxvdDIgdGhlbWUgZm9yIG1hcHBpbmcKYGBgCgojIyBMb2FkIEVhcnRocXVha2UgRGF0YQpXZSdsbCB3YW50IHRvIHN0YXJ0IGJ5IHJlYWRpbmcgdGhlIGVhcnRocXVha2UgZGF0YSB3ZSBjcmVhdGVkIHByZXZpb3VzbHkgaW50byBSJ3MgZ2xvYmFsIGVudmlyb25tZW50LiBXZSBjYW4gdXNlIHRoZSBgcmVhZF9zZigpYCBmdW5jdGlvbiB0byBhY2NvbXBsaXNoIHRoaXM6CgpgYGB7cn0KbW9RdWFrZXMgPC0gcmVhZF9zZigicmVzdWx0cy9HRU9fRWFydGhxdWFrZXMvR0VPX0VhcnRocXVha2VzLnNocCIpCmNvdW50eVF1YWtlcyA8LSByZWFkX3NmKCJyZXN1bHRzL0dFT19FYXJ0aHF1YWtlc0J5Q291bnR5L0dFT19FYXJ0aHF1YWtlc0J5Q291bnR5LnNocCIpCmBgYAoKYGxlYWZsZXRgIHJldHVybnMgd2FybmluZ3MgYWJvdXQgZGF0YSB0aGF0IGRvIG5vdCB1c2UgdGhlIFtXb3JsZCBHZW9kZXRpYyBTeXN0ZW0nc10oaHR0cHM6Ly9lbi53aWtpcGVkaWEub3JnL3dpa2kvV29ybGRfR2VvZGV0aWNfU3lzdGVtKSAxOTg0IHJldmlzaW9uLCBrbm93biBhcyBXR1M4NC4gTGlrZSBOQUQxOTgzLCBXR1M4NCBpcyBhIGdlb2dyYXBoaWMgY29vcmRpbmF0ZSBzeXN0ZW0gZGVzaWduZWQgZm9yIHdvcmxkd2lkZSBsb2NhdGluZyBvZiBkYXRhLiBXZSBjYW4gdHJhbnNmb3JtIGJvdGggb2Ygb3VyIHNoYXBlZmlsZXMsIHdoaWNoIHdlcmUgY3JlYXRlZCB1c2luZyBOQUQxOTgzOgoKYGBge3J9Cm1vUXVha2VzIDwtIHN0X3RyYW5zZm9ybShtb1F1YWtlcywgY3JzID0gNDMyNikKY291bnR5UXVha2VzIDwtIHN0X3RyYW5zZm9ybShjb3VudHlRdWFrZXMsIGNycyA9IDQzMjYpCmBgYAoKIyMgU2ltcGxlIExlYWZsZXQgTWFwCldpdGggb3VyIHRyYW5zZm9ybWVkIGRhdGEsIHdlIGNhbiBtYWtlIGEgc2ltcGxlIGBsZWFmbGV0YCBtYXAgb2YgZWFydGhxdWFrZSBsb2NhdGlvbnMgaW4gTWlzc291cmkuIE91ciBwaXBlbGluZSByZXF1aXJlcyB0aHJlZSBlbGVtZW50czoKCjEuIFdlIG5lZWQgdG8gY2FsbCB0aGUgYGxlYWZsZXQoKWAgZnVuY3RpbiBhbmQgZGVmaW5lIHRoZSBkYXRhIHNvdXJjZSBhcyBgbW9RdWFrZXNgLCAqKnRoZW4qKgoyLiBXZSBuZWVkIHRvIGFkZCBtYXAgdGlsZXMgdXNpbmcgYGFkZFRpbGVzKClgLCAqKnRoZW4qKgozLiBXZSBuZWVkIHRvIHByb2plY3Qgb3VyIHBvaW50IGRhdGEgdXNpbmcgYGFkZE1hcmtlcnMoKWAKClRoZSB0aWxlcyByZWZlciB0byB0aGUgYmFzZW1hcCwgd2hpY2ggaXMgc291cmNlZCBmcm9tIFtPcGVuU3RyZWV0TWFwXShodHRwOi8vb3BlbnN0cmVldG1hcC5vcmcpIGJ5IGRlZmF1bHQuCgpgYGB7cn0KbGVhZmxldChkYXRhID0gbW9RdWFrZXMpICU+JQogIGFkZFRpbGVzKCkgJT4lCiAgYWRkTWFya2VycygpCmBgYAoKIyMgQ2hhbmdpbmcgdGhlIEJhc2VtYXAKRm9yIG1hcHBpbmcgZGV0YWlsZWQgZGF0YSwgSSBmaW5kIHRoZSBPcGVuU3RyZWV0TWFwIGJhc2VtYXAgaGFzIHRvbyBtYW55IGxhYmVscyBhbmQgbWFya2VycyBvbiBpdC4gSSBwcmVmZXIgYSBzaW1wbGVyIGJhc2VtYXAsIGFuZCBsdWNraWx5IGBsZWFmbGV0YCBoYXMgdGhlIGFiaWxpdHkgdG8gcGljayBmcm9tIGRvemVucyBvZiBvcHRpb25zLiBXZSBjYW4gc3BlY2lmeSBvdXIgcHJlZmVyZW5jZSB1c2luZyBgYWRkUHJvdmlkZXJUaWxlcygpYCBpbnN0ZWFkIG9mIGBhZGRUaWxlcygpYDoKCmBgYHtyfQpsZWFmbGV0KGRhdGEgPSBtb1F1YWtlcykgJT4lCiAgYWRkUHJvdmlkZXJUaWxlcyhwcm92aWRlcnMkQ2FydG9EQi5Qb3NpdHJvbikgJT4lCiAgYWRkTWFya2VycygpCmBgYAoKWW91IGNhbiBsZWFybiBtb3JlIGFib3V0IGJhc2VtYXBzIGluIGxlYWZ0bGV0IFtoZXJlXShodHRwczovL3JzdHVkaW8uZ2l0aHViLmlvL2xlYWZsZXQvYmFzZW1hcHMuaHRtbCksIGFuZCBzZWUgYW4gaW50ZXJhY3RpdmUgcHJldmlldyBvZiB0aGUgdmFyaW91cyBjaG9pY2VzIFtoZXJlXShodHRwOi8vbGVhZmxldC1leHRyYXMuZ2l0aHViLmlvL2xlYWZsZXQtcHJvdmlkZXJzL3ByZXZpZXcvaW5kZXguaHRtbCkuCgo=</div>
 
 
 

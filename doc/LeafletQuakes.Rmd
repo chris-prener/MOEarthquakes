@@ -32,4 +32,44 @@ library(leaflet)      # download census shapefiles
 library(ggthemes)     # ggplot2 theme for mapping
 ```
 
-## 
+## Load Earthquake Data
+We'll want to start by reading the earthquake data we created previously into R's global environment. We can use the `read_sf()` function to accomplish this:
+
+```{r}
+moQuakes <- read_sf("results/GEO_Earthquakes/GEO_Earthquakes.shp")
+countyQuakes <- read_sf("results/GEO_EarthquakesByCounty/GEO_EarthquakesByCounty.shp")
+```
+
+`leaflet` returns warnings about data that do not use the [World Geodetic System's](https://en.wikipedia.org/wiki/World_Geodetic_System) 1984 revision, known as WGS84. Like NAD1983, WGS84 is a geographic coordinate system designed for worldwide locating of data. We can transform both of our shapefiles, which were created using NAD1983:
+
+```{r}
+moQuakes <- st_transform(moQuakes, crs = 4326)
+countyQuakes <- st_transform(countyQuakes, crs = 4326)
+```
+
+## Simple Leaflet Map
+With our transformed data, we can make a simple `leaflet` map of earthquake locations in Missouri. Our pipeline requires three elements:
+
+1. We need to call the `leaflet()` functin and define the data source as `moQuakes`, **then**
+2. We need to add map tiles using `addTiles()`, **then**
+3. We need to project our point data using `addMarkers()`
+
+The tiles refer to the basemap, which is sourced from [OpenStreetMap](http://openstreetmap.org) by default.
+
+```{r}
+leaflet(data = moQuakes) %>%
+  addTiles() %>%
+  addMarkers()
+```
+
+## Changing the Basemap
+For mapping detailed data, I find the OpenStreetMap basemap has too many labels and markers on it. I prefer a simpler basemap, and luckily `leaflet` has the ability to pick from dozens of options. We can specify our preference using `addProviderTiles()` instead of `addTiles()`:
+
+```{r}
+leaflet(data = moQuakes) %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  addMarkers()
+```
+
+You can learn more about basemaps in leaftlet [here](https://rstudio.github.io/leaflet/basemaps.html), and see an interactive preview of the various choices [here](http://leaflet-extras.github.io/leaflet-providers/preview/index.html).
+
